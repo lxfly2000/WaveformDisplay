@@ -74,6 +74,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	int pressed = FALSE;
 
 	ChangeWindowMode(TRUE);
+	SetAlwaysRunFlag(TRUE);
 	if (_strcmpi(lpCmdLine, "720p") == 0)
 		SetGraphMode(1280, 720, 32);
 	if (_strcmpi(lpCmdLine, "kaiki") == 0)
