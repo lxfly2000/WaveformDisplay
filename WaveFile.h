@@ -1,5 +1,11 @@
 #pragma once
 #include"DxLib.h"
+#define USE_XAUDIO2
+#ifdef USE_XAUDIO2
+#include<xaudio2.h>
+#pragma comment(lib,"xaudio2.lib")
+#endif
+
 //http://soundfile.sapp.org/doc/WaveFormat/
 struct WaveFileHeader
 {
@@ -35,5 +41,18 @@ public:
 	WaveFileHeader header;
 	BYTE *pWaveData;
 	int samplesCount;
+#ifndef USE_XAUDIO2
 	int handleSound;
+#else
+private:
+	IXAudio2 *xAudio2Engine = nullptr;
+	IXAudio2MasteringVoice *masterVoice = nullptr;
+	IXAudio2SourceVoice *srcVoice = nullptr;
+	WAVEFORMATEX waveformat;
+
+	XAUDIO2_BUFFER buffer = { 0 };
+	XAUDIO2_VOICE_STATE state;
+	int &wavsize = header.waveDataSize;
+	BYTE *&wavdata = pWaveData;
+#endif
 };

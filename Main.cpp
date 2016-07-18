@@ -127,6 +127,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			{
 				wave.LoadFile(filepath);
 				ws.ConfigureVar(&wave, 60);
+				status = 0;
 			}
 		}
 		ws.Draw();
