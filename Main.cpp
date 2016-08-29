@@ -5,6 +5,7 @@
 struct WaveformScreen
 {
 	const int color[2] = { 0x00FF0000,0x0000FF00 };
+	const int betweenX = 1;//每隔多少像素画一个波形采样点
 	int x, y, w, h;
 	int samplesPerFrame;
 	int samplesPerPixel;
@@ -20,15 +21,16 @@ struct WaveformScreen
 		samplesPerPixel = samplesPerFrame / w;
 		if (samplesPerPixel == 0)samplesPerPixel = 1;
 		for (i = 0; i < 2; i++)
-			baseline[i] = (int)((i + 0.5f)*h / wavfile->header.nChannels);
+			baseY[i] = (int)((i + 0.5f)*h / wavfile->header.nChannels);
 	}
 	void DrawSingleChannel(int ch)
 	{
-		for (i = 0; i < w; i++)
+		for (i = 0; i < w;)//i是像素的X座标
 		{
-			tempSmpVar[i % 2] = wavfile->GetSampleVar16(curSmp + i*samplesPerPixel, ch);
-			DrawLine(i, baseline[ch] - tempSmpVar[i % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX,
-				i + 1, baseline[ch] - tempSmpVar[(i + 1) % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX, color[ch]);
+			i += betweenX;
+			tempSmpVar[i / betweenX % 2] = wavfile->GetSampleVar16(curSmp + i*samplesPerPixel, ch);
+			DrawLine(i - betweenX, baseY[ch] - tempSmpVar[(i / betweenX + 1) % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX,
+				i, baseY[ch] - tempSmpVar[i / betweenX % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX, color[ch]);
 		}
 	}
 	void Draw()
@@ -40,7 +42,7 @@ struct WaveformScreen
 		DrawFormatString(0, 0, 0x00FFFFFF, L"Cur:%10d Smp All:%10d Smps", curSmp, wavfile->samplesCount);
 	}
 private:
-	int baseline[2];
+	int baseY[2];
 	int tempSmpVar[2] = { 0 };
 	int curSmp;
 	int i, c;
