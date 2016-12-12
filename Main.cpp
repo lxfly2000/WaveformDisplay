@@ -140,7 +140,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	while (1)
 	{
 		if (ProcessMessage() == -1)break;
-		if (ClearDrawScreen() == -1)break;
+		ClearDrawScreen();
 
 		if (CheckHitKey(KEY_INPUT_ESCAPE))break;
 
@@ -192,7 +192,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		ws.Draw();
 
 		DrawString(0, ws.h - 36, szStr, 0x00FFFFFF);
-		if (ScreenFlip() == -1)break;
+		ScreenFlip();
 	}
 
 	DxLib_End();        // ＤＸライブラリ使用の終了処理
