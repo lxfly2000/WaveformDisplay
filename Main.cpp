@@ -119,8 +119,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	TCHAR szStr[110];
 	int status = 0;
 	int pressed = FALSE;
+	int windowed = TRUE;
 
-	ChangeWindowMode(TRUE);
+	ChangeWindowMode(windowed);
 	SetAlwaysRunFlag(TRUE);
 	if (_strcmpi(lpCmdLine, "720p") == 0)
 		SetGraphMode(1280, 720, 32);
@@ -172,6 +173,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		}
 		if (CheckHitKey(KEY_INPUT_O))
 		{
+			if (!windowed)ChangeWindowMode(windowed = TRUE);
 			if (SelectFile(filepath, NULL))
 			{
 				wave.LoadFile(filepath);
@@ -182,6 +184,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		}
 		if (CheckHitKey(KEY_INPUT_1))ws.SetViewForm(0);
 		if (CheckHitKey(KEY_INPUT_2))ws.SetViewForm(1);
+		if (CheckHitKey(KEY_INPUT_F11))
+		{
+			windowed ^= TRUE;
+			ChangeWindowMode(windowed);
+		}
 		ws.Draw();
 
 		DrawString(0, ws.h - 36, szStr, 0x00FFFFFF);
