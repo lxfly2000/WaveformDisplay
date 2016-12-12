@@ -1,28 +1,9 @@
 #pragma once
 #include"DxLib.h"
-#define USE_XAUDIO2
-#ifdef USE_XAUDIO2
-#include<xaudio2.h>
-#pragma comment(lib,"xaudio2.lib")
-#endif
 
-//http://soundfile.sapp.org/doc/WaveFormat/
-struct WaveFileHeader
-{
-	char RIFF[4];
-	int fileLength_minus8;
-	char WAVE[4];
-	char fmt[4];
-	int fmtLength_minus8;
-	short audioFormat;//1=PCM, 大于等于2=其他格式
-	short nChannels;
-	int sampleRate;
-	int byteRate;
-	short blockAlign;
-	short bitsPerVarInSample;
-	char data[4];
-	int waveDataSize;//In byte
-};
+#define USE_DATA_FROM_DXLIB//http://dxlib.o.oo7.jp/cgi/patiobbs/patio.cgi?mode=view&no=3385
+#define MAX_CHANNELS 2
+
 class WaveFile
 {
 public:
@@ -34,25 +15,21 @@ public:
 	bool Play(int resetPos = TRUE);
 	void Pause();
 
+	int GetSoundHandle();
+	int GetSoftSoundHandle();
 	int GetCurrentPlaySamplePos();
-	//获取采样点中的电平
-	short GetSampleVar16(int sample, int channel);
-
-	WaveFileHeader header;
-	BYTE *pWaveData;
+	//获取采样点中的电平，有效数值：-32768～32767
+	int GetSampleVar(int sample, int channel);
+	//获取频谱数值，calc_length_in_sample 只能是 256～16384 之间的 2 的倍数
+	void GetFFTVar(int sample, int channel, int calc_length_in_sample, float* outbuf, int nbuf);
+	int sampleRate;
+	int nChannels;
 	int samplesCount;
-#ifndef USE_XAUDIO2
-	int handleSound;
-#else
 private:
-	IXAudio2 *xAudio2Engine = nullptr;
-	IXAudio2MasteringVoice *masterVoice = nullptr;
-	IXAudio2SourceVoice *srcVoice = nullptr;
-	WAVEFORMATEX waveformat;
+	int handleSound;
+	int handleSoftSound;
+	int bitsPerVarInSample;
+	int isFloatType;
 
-	XAUDIO2_BUFFER buffer = { 0 };
-	XAUDIO2_VOICE_STATE state;
-	int &wavsize = header.waveDataSize;
-	BYTE *&wavdata = pWaveData;
-#endif
+	int sampleVar[MAX_CHANNELS];
 };

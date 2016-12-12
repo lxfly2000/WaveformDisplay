@@ -1,51 +1,74 @@
+#include <cmath>
 #include "DxLib.h"
 #include "WaveFile.h"
-#include "E:\Codes\UseVisualStyle.h"
+#include "..\MyCodes\UseVisualStyle.h"
 
 struct WaveformScreen
 {
-	const int color[2] = { 0x00FF0000,0x0000FF00 };
-	const int betweenX = 1;//每隔多少像素画一个波形采样点
-	int x, y, w, h;
-	int samplesPerFrame;
-	int samplesPerPixel;
-	WaveFile *wavfile;
 	void ConfigureVar(WaveFile*wav, int fps)
 	{
 		wavfile = wav;
 		x = 0;
 		y = 0;
 		GetDrawScreenSize(&w, &h);
+		multiplyX = w / log(w + 1);
 		if (!wavfile)return;
-		samplesPerFrame = wavfile->header.sampleRate / fps;
+		samplesPerFrame = wavfile->sampleRate / fps;
 		samplesPerPixel = samplesPerFrame / w;
 		if (samplesPerPixel == 0)samplesPerPixel = 1;
 		for (i = 0; i < 2; i++)
-			baseY[i] = (int)((i + 0.5f)*h / wavfile->header.nChannels);
+			baseY[i] = (int)((i + 0.5f)*h / wavfile->nChannels);
 	}
 	void DrawSingleChannel(int ch)
 	{
-		for (i = 0; i < w;)//i是像素的X座标
+		switch (viewform)
 		{
-			i += betweenX;
-			tempSmpVar[i / betweenX % 2] = wavfile->GetSampleVar16(curSmp + i*samplesPerPixel, ch);
-			DrawLine(i - betweenX, baseY[ch] - tempSmpVar[(i / betweenX + 1) % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX,
-				i, baseY[ch] - tempSmpVar[i / betweenX % 2] * (h / wavfile->header.nChannels / 2) / SHRT_MAX, color[ch]);
+		case 0:
+			for (i = 0; i < w; i += betweenX)//i是像素的X座标
+			{
+				tempSmpVar[i / betweenX % 2] = wavfile->GetSampleVar(curSmp + i*samplesPerPixel, ch);
+				DrawLine(i, baseY[ch] - tempSmpVar[(i / betweenX + 1) % 2] * (h / wavfile->nChannels / 2) / SHRT_MAX,
+					i + betweenX, baseY[ch] - tempSmpVar[i / betweenX % 2] * (h / wavfile->nChannels / 2) / SHRT_MAX, color[ch]);
+			}
+			break;
+		case 1:
+			wavfile->GetFFTVar(curSmp, ch, 4096, freqviewBuffer, ARRAYSIZE(freqviewBuffer));
+			for (i = 0; i < ARRAYSIZE(freqviewBuffer); i++)
+				DrawBox((int)(log(i*w / ARRAYSIZE(freqviewBuffer) + 1)*multiplyX), (ch + 1)*h / 2,
+				(int)(log((i + 1)*w / ARRAYSIZE(freqviewBuffer) + 1)*multiplyX),
+					(int)((ch + 1 - powf(freqviewBuffer[i], 0.25f))*h / 2), color[ch], TRUE);
+			break;
 		}
 	}
 	void Draw()
 	{
 		if (!wavfile)return;
 		curSmp = wavfile->GetCurrentPlaySamplePos();
-		for (c = 0; c < wavfile->header.nChannels; c++)
+		for (c = 0; c < wavfile->nChannels; c++)
 			DrawSingleChannel(c);
-		DrawFormatString(0, 0, 0x00FFFFFF, L"Cur:%10d Smp All:%10d Smps", curSmp, wavfile->samplesCount);
+		snprintfDx(szSmp, ARRAYSIZE(szSmp), TEXT("Smp:%10d / %d"), curSmp, wavfile->samplesCount);
+		DrawString(0, 0, szSmp, 0x00FFFFFF);
 	}
+	void SetViewForm(int n)
+	{
+		viewform = n;
+	}
+	int x, y, w, h;
 private:
+	const int color[2] = { 0x00FF0000,0x0000FF00 };
+	const int betweenX = 1;//每隔多少像素画一个波形采样点（即解析度）
+	double multiplyX;
+	int samplesPerFrame;
+	int samplesPerPixel;
+	int viewform = 0;//0=波形，1=频谱
+	WaveFile *wavfile;
+	TCHAR szSmp[32];
 	int baseY[2];
 	int tempSmpVar[2] = { 0 };
 	int curSmp;
-	int i, c;
+	int i;//Sample 的临时变量
+	int c;//Channel 的临时变量
+	float freqviewBuffer[512];
 };
 
 BOOL SelectFile(TCHAR *filepath, TCHAR *filename)
@@ -54,7 +77,8 @@ BOOL SelectFile(TCHAR *filepath, TCHAR *filename)
 	ofn.lStructSize = sizeof OPENFILENAME;
 	ofn.hwndOwner = GetActiveWindow();
 	ofn.hInstance = nullptr;
-	ofn.lpstrFilter = L"波形音频 (wav)\0*.wav\0所有文件\0*\0\0";
+	ofn.lpstrFilter = L"所有支持的格式 (wav, mp3, ogg)\0*.wav;*.mp3;*.ogg\0"
+		"波形音频 (wav)\0*.wav\0MP3 格式音频\0*.mp3\0Ogg Vorbis\0*.ogg\0所有文件\0*\0\0";
 	ofn.lpstrFile = filepath;
 	ofn.lpstrTitle = L"选择文件";
 	ofn.nMaxFile = MAX_PATH;
@@ -65,14 +89,35 @@ BOOL SelectFile(TCHAR *filepath, TCHAR *filename)
 	return GetOpenFileName(&ofn);
 }
 
+void UpdateString(TCHAR *str, int strsize, bool isplaying, const TCHAR *path)
+{
+	TCHAR path2[60];
+	if (strlenDx(path) > ARRAYSIZE(path2))
+	{
+		path = strrchrDx(path, TEXT('\\')) + 1;
+		size_t n = strlenDx(path);
+		if (n > ARRAYSIZE(path2))
+		{
+			strncpyDx(path2, path, ARRAYSIZE(path2));
+			path = strrchrDx(path, TEXT('.'));
+			n = ARRAYSIZE(path2) - 3 - strlenDx(path);
+			sprintfDx(path2 + n, TEXT("..%s"), path);
+			path = path2;
+		}
+	}
+	snprintfDx(str, strsize, TEXT("Space:播放/暂停 S:停止 O:打开文件 Esc:退出 1:波形显示 2:频谱显示\n%s：%s"),
+		isplaying ? TEXT("正在播放") : TEXT("当前文件"), path[0] == TEXT('\0') ? TEXT("未选择") : path);
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
 	SetOutApplicationLogValidFlag(FALSE);
 	WaveFile wave;
-	int status = 0;
-	TCHAR filepath[MAX_PATH] = L"";
 	WaveformScreen ws;
+	TCHAR filepath[MAX_PATH] = L"";
+	TCHAR szStr[110];
+	int status = 0;
 	int pressed = FALSE;
 
 	ChangeWindowMode(TRUE);
@@ -86,6 +131,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	SetFontSize(14);
 
 	ws.ConfigureVar(nullptr, 60);
+	UpdateString(szStr, ARRAYSIZE(szStr), status == 2, filepath);
 
 	if (DxLib_Init() == -1)    // ＤＸライブラリ初期化処理
 		return -1;    // エラーが起きたら直ちに終了
@@ -116,6 +162,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				}
 				pressed = TRUE;
 			}
+			UpdateString(szStr, ARRAYSIZE(szStr), status == 2, filepath);
 		}
 		else pressed = FALSE;
 		if (CheckHitKey(KEY_INPUT_S))
@@ -131,12 +178,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				ws.ConfigureVar(&wave, 60);
 				status = 0;
 			}
+			UpdateString(szStr, ARRAYSIZE(szStr), status == 2, filepath);
 		}
+		if (CheckHitKey(KEY_INPUT_1))ws.SetViewForm(0);
+		if (CheckHitKey(KEY_INPUT_2))ws.SetViewForm(1);
 		ws.Draw();
 
-		DrawFormatString(0, ws.h - 36, 0x00FFFFFF,
-			L"Space:播放/暂停 S:停止 O:打开文件 Esc:退出\n%s：%s", status == 2 ? L"正在播放" : L"当前文件",
-			filepath[0] == L'\0' ? L"[未选择]" : filepath);
+		DrawString(0, ws.h - 36, szStr, 0x00FFFFFF);
 		if (ScreenFlip() == -1)break;
 	}
 
