@@ -5,12 +5,9 @@
 
 struct WaveformScreen
 {
-	void ConfigureVar(WaveFile*wav, int fps)
+	void ConfigureVar(WaveFile*wav, int fps = 60)
 	{
 		wavfile = wav;
-		x = 0;
-		y = 0;
-		GetDrawScreenSize(&w, &h);
 		multiplyX = w / log(w + 1);
 		if (!wavfile)return;
 		samplesPerFrame = wavfile->sampleRate / fps;
@@ -52,6 +49,13 @@ struct WaveformScreen
 	void SetViewForm(int n)
 	{
 		viewform = n;
+	}
+	void SetRectangle(int _x, int _y, int _w = 0, int _h = 0)
+	{
+		x = _x;
+		y = _y;
+		if (_w)w = _w;
+		if (_h)h = _h;
 	}
 	int x, y, w, h;
 private:
@@ -120,6 +124,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	int status = 0;
 	int pressed = FALSE;
 	int windowed = TRUE;
+	int w, h;
 
 	ChangeWindowMode(windowed);
 	SetAlwaysRunFlag(TRUE);
@@ -131,6 +136,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	ChangeFont(L"SimSun");
 	SetFontSize(14);
 
+	GetDrawScreenSize(&w, &h);
+	ws.SetRectangle(0, 0, w, h);
 	ws.ConfigureVar(nullptr, 60);
 	UpdateString(szStr, ARRAYSIZE(szStr), status == 2, filepath);
 
