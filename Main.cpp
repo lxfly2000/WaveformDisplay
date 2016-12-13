@@ -10,11 +10,24 @@ struct WaveformScreen
 		wavfile = wav;
 		multiplyX = w / log(w + 1);
 		if (!wavfile)return;
-		samplesPerFrame = wavfile->sampleRate / fps;
+		samplesPerFrame = wavfile->GetSampleRate() / fps;
 		samplesPerPixel = samplesPerFrame / w;
+		sampleMaxSignedVar = (1 << (wavfile->GetSampleVarBitsLength() - 1)) - 1;
 		if (samplesPerPixel == 0)samplesPerPixel = 1;
 		for (i = 0; i < 2; i++)
-			baseY[i] = (int)((i + 0.5f)*h / wavfile->nChannels);
+			baseY[i] = (int)((i + 0.5f)*h / wavfile->GetChannelNum());
+#pragma region CheckSign
+		//因为目前的 DxLib 中无法获取音频是否是有符号的，所以只能自己检测。
+		bool issigned = false;
+		for (i = 0; i<wavfile->GetSampleCount(); i++)
+			if (wavfile->GetSampleVar(i, 0) < 0)
+			{
+				issigned = true;
+				break;
+			}
+		if (!issigned)for (i = 0; i < 2; i++)
+			baseY[i] += h / 2 / wavfile->GetChannelNum();
+#pragma endregion
 	}
 	void DrawSingleChannel(int ch)
 	{
@@ -23,17 +36,17 @@ struct WaveformScreen
 		case 0:
 			for (i = 0; i < w; i += betweenX)//i是像素的X座标
 			{
-				tempSmpVar[i / betweenX % 2] = wavfile->GetSampleVar(curSmp + i*samplesPerPixel, ch);
-				DrawLine(i, baseY[ch] - tempSmpVar[(i / betweenX + 1) % 2] * (h / wavfile->nChannels / 2) / SHRT_MAX,
-					i + betweenX, baseY[ch] - tempSmpVar[i / betweenX % 2] * (h / wavfile->nChannels / 2) / SHRT_MAX, color[ch]);
+				tempSmpVar[i / betweenX % 2] = baseY[ch] - wavfile->GetSampleVar(curSmp + i*samplesPerPixel, ch) *
+					h / wavfile->GetChannelNum() / 2 / sampleMaxSignedVar;
+				if (i)DrawLine(i - betweenX, tempSmpVar[(i / betweenX + 1) % 2], i, tempSmpVar[i / betweenX % 2], color[ch]);
 			}
 			break;
 		case 1:
 			wavfile->GetFFTVar(curSmp, ch, 4096, freqviewBuffer, ARRAYSIZE(freqviewBuffer));
 			for (i = 0; i < ARRAYSIZE(freqviewBuffer); i++)
-				DrawBox((int)(log(i*w / ARRAYSIZE(freqviewBuffer) + 1)*multiplyX), (ch + 1)*h / 2,
+				DrawBox((int)(log(i*w / ARRAYSIZE(freqviewBuffer) + 1)*multiplyX), (ch + 1)*h / wavfile->GetChannelNum(),
 				(int)(log((i + 1)*w / ARRAYSIZE(freqviewBuffer) + 1)*multiplyX),
-					(int)((ch + 1 - powf(freqviewBuffer[i], 0.25f))*h / 2), color[ch], TRUE);
+					(int)((ch + 1 - powf(freqviewBuffer[i], 0.25f))*h / wavfile->GetChannelNum()), color[ch], TRUE);
 			break;
 		}
 	}
@@ -41,9 +54,9 @@ struct WaveformScreen
 	{
 		if (!wavfile)return;
 		curSmp = wavfile->GetCurrentPlaySamplePos();
-		for (c = 0; c < wavfile->nChannels; c++)
+		for (c = 0; c < wavfile->GetChannelNum(); c++)
 			DrawSingleChannel(c);
-		snprintfDx(szSmp, ARRAYSIZE(szSmp), TEXT("Smp:%10d / %d"), curSmp, wavfile->samplesCount);
+		snprintfDx(szSmp, ARRAYSIZE(szSmp), TEXT("Smp:%10d / %d"), curSmp, wavfile->GetSampleCount());
 		DrawString(0, 0, szSmp, 0x00FFFFFF);
 	}
 	void SetViewForm(int n)
@@ -64,6 +77,7 @@ private:
 	double multiplyX;
 	int samplesPerFrame;
 	int samplesPerPixel;
+	int sampleMaxSignedVar;
 	int viewform = 0;//0=波形，1=频谱
 	WaveFile *wavfile;
 	TCHAR szSmp[32];

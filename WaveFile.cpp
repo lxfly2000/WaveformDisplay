@@ -85,6 +85,26 @@ int WaveFile::GetSampleVar(int sample, int channel)
 	return sampleVar[channel];
 }
 
+int WaveFile::GetSampleVarBitsLength()
+{
+	return bitsPerVarInSample;
+}
+
+int WaveFile::GetChannelNum()
+{
+	return nChannels;
+}
+
+int WaveFile::GetSampleRate()
+{
+	return sampleRate;
+}
+
+int WaveFile::GetSampleCount()
+{
+	return samplesCount;
+}
+
 void WaveFile::GetFFTVar(int sample, int channel, int calc_length_in_sample, float * outbuf, int nbuf)
 {
 	GetFFTVibrationSoftSound(GetSoftSoundHandle(), channel, sample, calc_length_in_sample, outbuf, nbuf);
