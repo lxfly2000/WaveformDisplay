@@ -1,5 +1,4 @@
 #include "WaveFile.h"
-#include"..\MyCodes\MyUtilities.h"
 #include<cassert>
 
 WaveFile::WaveFile() :handleSound(0), handleSoftSound(0)

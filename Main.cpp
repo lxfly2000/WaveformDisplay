@@ -1,7 +1,23 @@
 #include <cmath>
 #include "DxLib.h"
 #include "WaveFile.h"
-#include "..\MyCodes\UseVisualStyle.h"
+#include "UseVisualStyle.h"
+
+class DPIInfo
+{
+public:
+	DPIInfo()
+	{
+		HDC h = GetDC(0);
+		sx = GetDeviceCaps(h, LOGPIXELSX);
+		sy = GetDeviceCaps(h, LOGPIXELSY);
+	}
+	template<typename Tnum>Tnum X(Tnum n)const { return n * sx / odpi; }
+	template<typename Tnum>Tnum Y(Tnum n)const { return n * sy / odpi; }
+private:
+	const int odpi = USER_DEFAULT_SCREEN_DPI;
+	int sx, sy;
+};
 
 struct WaveformScreen
 {
@@ -142,13 +158,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	ChangeWindowMode(windowed);
 	SetAlwaysRunFlag(TRUE);
+	DPIInfo hdpi;
 	if (_strcmpi(lpCmdLine, "720p") == 0)
-		SetGraphMode(1280, 720, 32);
-	if (_strcmpi(lpCmdLine, "kaiki") == 0)
-		SetGraphMode(1152, 720, 32);
+		SetGraphMode(hdpi.X(1280), hdpi.Y(720), 32);
+	else if (_strcmpi(lpCmdLine, "kaiki") == 0)
+		SetGraphMode(hdpi.X(1152), hdpi.Y(720), 32);
+	else
+		SetGraphMode(hdpi.X(DEFAULT_SCREEN_SIZE_X), hdpi.Y(DEFAULT_SCREEN_SIZE_Y), 32);
 	SetDrawScreen(DX_SCREEN_BACK);
 	ChangeFont(L"SimSun");
-	SetFontSize(14);
+	SetFontSize(hdpi.X(14));
+	if (hdpi.X(14) > 14)
+	{
+		ChangeFontType(DX_FONTTYPE_ANTIALIASING);
+		SetFontThickness(3);
+	}
 
 	GetDrawScreenSize(&w, &h);
 	ws.SetRectangle(0, 0, w, h);
