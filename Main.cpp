@@ -181,6 +181,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	if (DxLib_Init() == -1)    // ＤＸライブラリ初期化処理
 		return -1;    // エラーが起きたら直ちに終了
+	int lowerTextPosY = ws.h - 2 * GetFontSize() - 8;
 
 	while (1)
 	{
@@ -236,7 +237,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		}
 		ws.Draw();
 
-		DrawString(0, ws.h - 36, szStr, 0x00FFFFFF);
+		DrawString(0, lowerTextPosY, szStr, 0x00FFFFFF);
 		ScreenFlip();
 	}
 
